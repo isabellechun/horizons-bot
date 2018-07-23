@@ -1,9 +1,11 @@
 const { createMessageAdapter } = require('@slack/interactive-messages');
 const { WebClient, RTMClient } = require('@slack/client');
+const createSlackEventAdapter = require('@slack/events-api').createSlackEventAdapter;
 const http = require('http');
 const express = require('express');
 const bodyParser = require('body-parser');
 const app = express();
+const dflow = require('./dialog')
 
 // An access token (from your Slack app or custom integration - xoxp, xoxb, or xoxa)
 const token = process.env.BOT_TOKEN;
@@ -13,6 +15,7 @@ const rtm = new RTMClient(token);
 rtm.start()
 // Listen function for message
 rtm.on('message', (event) => {
+  dflow(event.text)
   rtm.sendMessage('You said: ' + event.text, event.channel)
     .then((res) => {
       // `res` contains information about the posted message
@@ -22,19 +25,12 @@ rtm.on('message', (event) => {
 })
 
 // Create the adapter using the app's verification token, read from environment variable
-const slackInteractions = createMessageAdapter(process.env.SLACK_VERIFICATION_TOKEN);
+// const slackInteractions = createMessageAdapter(process.env.SLACK_VERIFICATION_TOKEN);
+// const slackEvents = createSlackEventAdapter(process.env.SLACK_VERIFICATION_TOKEN);
 
 // Initialize an Express application
 app.use(bodyParser.urlencoded({ extended: false }));
-
-// Attach the adapter to the Express application as a middleware
-app.use('/slack/actions', slackInteractions.expressMiddleware());
-
-slackInteractions.action('say_hello', (payload, respond) => {
-  // `payload` is an object that describes the interaction
-  console.log(`The user ${payload.user.name} in team ${payload.team.domain} pressed a button`);
-  respond('Thanks for saying hello!');
-});
+app.use(express.json())
 
 // Post "Thanks" to channelid of request
 app.post('/slack/actions', (req, res) => {
@@ -49,6 +45,13 @@ app.post('/slack/actions', (req, res) => {
     })
     .catch(console.error);
 })
+
+// URL_verification to test events
+app.post('/slack/events', (req, res) => {
+  console.log(req.body)
+  res.send(req.body.challenge)
+})
+
 
 const port = process.env.PORT || 3005;
 
