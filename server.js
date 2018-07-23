@@ -5,7 +5,7 @@ const http = require('http');
 const express = require('express');
 const bodyParser = require('body-parser');
 const app = express();
-const dflow = require('./dialog')
+import dialogflow from './dialog'
 
 // An access token (from your Slack app or custom integration - xoxp, xoxb, or xoxa)
 const token = process.env.BOT_TOKEN;
@@ -15,7 +15,7 @@ const rtm = new RTMClient(token);
 rtm.start()
 // Listen function for message
 rtm.on('message', (event) => {
-  dflow(event.text)
+  dialogflow(event.text)
   rtm.sendMessage('You said: ' + event.text, event.channel)
     .then((res) => {
       // `res` contains information about the posted message
