@@ -10,7 +10,7 @@ const sessionClient = new dialogflow.SessionsClient();
 const sessionPath = sessionClient.sessionPath(projectId, sessionId);
 
 // The text query request.
-export default function dflow(query) {
+export default function dflow(query, callback) {
   const request = {
     session: sessionPath,
     queryInput: {
@@ -41,8 +41,10 @@ export default function dflow(query) {
           subject: resp[1],
           date: resp[2]
         };
-        console.log("Dialog: " + obj)
-        googleCal(obj)
+        callback(obj);
+        //console.log("Dialog: " + obj)
+
+        //googleCal(obj)
       } else {
         console.log(`  No intent matched.`);
       }
