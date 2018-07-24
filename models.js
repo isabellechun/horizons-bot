@@ -9,7 +9,7 @@ if (! process.env.MONGODB_URI) {
 var connect = process.env.MONGODB_URI;
 mongoose.connect(connect, { useNewUrlParser: true });
 
-var taskSchema = new mongoose.Schema({
+var eventSchema = new mongoose.Schema({
   host: {
     type: String,
   },
@@ -22,6 +22,10 @@ var taskSchema = new mongoose.Schema({
     required: true
   },
   date: {
+    type: String,
+    required: true
+  },
+  end: {
     type: String,
     required: true
   },
@@ -48,10 +52,10 @@ var userSchema = new mongoose.Schema({
   }
 })
 
-var Task = mongoose.model('Task', taskSchema);
+var Event = mongoose.model('Event', eventSchema);
 var User = mongoose.model('User', userSchema)
 
 module.exports = {
-  Task: Task,
+  Event: Event,
   User: User
 };
