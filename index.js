@@ -2,9 +2,12 @@ const fs = require('fs');
 const readline = require('readline');
 const {google} = require('googleapis');
 const User = require('./models').User;
-const Task = require('./models').Task;
-
-export default function googleCal (id) {
+const Event = require('./models').Event;
+const app = require('express')
+// const opn = require('opn');
+const router = app.Router()
+//const opm = require('opm')
+export default function googleCal (id, call) {
   console.log("ID: " + id)
   // If modifying these scopes, delete credentials.json.
   const SCOPES = ['https://www.googleapis.com/auth/calendar'];
@@ -49,6 +52,10 @@ export default function googleCal (id) {
         access_type: 'offline',
         scope: SCOPES,
       });
+      /*
+      opn(authUrl);
+      router.get("/oauthcallback") */
+
       console.log('Authorize this app by visiting this url:', authUrl);
       const rl = readline.createInterface({
         input: process.stdin,
@@ -67,10 +74,11 @@ export default function googleCal (id) {
           callback(oAuth2Client);
         });
       });
+
     };
 
     function createEvent(auth){
-      Task.findById(id, (err, success) => {
+      Event.findById(id, (err, success) => {
         if (err) {
           console.log(err)
         } else {
@@ -79,11 +87,9 @@ export default function googleCal (id) {
             'summary': success.subject,
             'start': {
               'dateTime': success.date,
-              'timeZone': 'America/Los_Angeles',
             },
             'end': {
-              'dateTime': '2018-07-24T18:00:00-07:00',
-              'timeZone': 'America/Los_Angeles',
+              'dateTime': success.end,
             },
             /*'recurrence': [
             'RRULE:FREQ=DAILY;COUNT=2'
@@ -106,13 +112,8 @@ export default function googleCal (id) {
             auth: auth,
             calendarId: 'primary',
             resource: event,
-          }, function(err, event) {
-            if (err) {
-              console.log('There was an error contacting the Calendar service: ' + err);
-              return;
-            }
-            console.log(event)
-            console.log('Event created: %s', event.data.htmlLink);
+          }, function(err) {
+            call(err)
           });
         }
       })

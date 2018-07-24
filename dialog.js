@@ -6,7 +6,7 @@ import googleCal from './index'
 const dialogflow = require('dialogflow');
 const sessionClient = new dialogflow.SessionsClient();
 const User = require('./models').User;
-const Task = require('./models').Task;
+const Event = require('./models').Event;
 
 
 // Define session path
@@ -35,32 +35,36 @@ export default function dflow(query, callback) {
         //console.log(`  Intent: ${result.intent.displayName}`);
         //parse result.queryText
         console.log('Detected intent in dialog.js');
-        console.log("Text is: " + result.fulfillmentText)
         var resp = result.fulfillmentText.split(',;,');
-        //resp[0] = task, resp[1] = subject, resp[2] = date-time
-        console.log(resp);
-        var obj = {
-          intent: result.intent.displayName,
+        //resp[0] = Event, resp[1] = subject, resp[2] = date-time
+        // var obj = {
+        //   intent: result.intent.displayName,
+        //   Event: resp[0],
+        //   subject: resp[1],
+        //   date: resp[2]
+        // };
+        var start = new Date(resp[2])
+        start.setHours(start.getHours() + start.getTimezoneOffset()/60)
+        var end = new Date(resp[2])
+        end.setHours(end.getHours() + end.getTimezoneOffset()/60 + 1)
+        start = start.toISOString()
+        end = end.toISOString()
+        console.log('Start time: ' + start)
+        console.log('End time: ' + end);
+        var event = new Event({
           task: resp[0],
           subject: resp[1],
-          date: resp[2]
-        };
-        var task = new Task({
-          task: resp[0],
-          subject: resp[1],
-          date: resp[2]
+          date: start,
+          end: end
         });
-        task.save(function(err, success) {
+        event.save(function(err, success) {
           if (err) {
             console.log('err in saving', err)
           } else {
+            console.log('good')
             callback(success)
           }
         })
-
-        //console.log("Dialog: " + obj)
-
-        //googleCal(obj)
       } else {
         console.log(`  No intent matched.`);
       }

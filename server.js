@@ -18,13 +18,19 @@ rtm.start()
 rtm.on('message', (event) => {
   if (event.username !== 'HotPotBot') {
     dialogflow(event.text, (obj) => {
+
+      var start = new Date(obj.date)
+      start = start.toUTCString();
+      var end = new Date(obj.end)
+      end = end.toUTCString();
+
       web.chat.postMessage(
         {
           "channel": event.channel,
           "text": "Is this correct?",
           "attachments": [
             {
-              "text": obj.task + ' ' + obj.subject + ' at ' + obj.date ,
+              "text": `${obj.task} ${obj.subject} from ${start} to ${end}`, // obj.task + ' ' + obj.subject + ' from ' + obj.date + ' to ' +  obj.end,
               "fallback": "You are unable to choose a game",
               "callback_id": obj._id,
               "color": "#3AA3E3",
@@ -51,7 +57,7 @@ rtm.on('message', (event) => {
         })
         .then((res) => {
           // `res` contains information about the posted message
-          googleCal(res.message.attachments[0].callback_id)
+          // googleCal(res.message.attachments[0].callback_id, )
           console.log('Message sent: ', event.ts);
         })
         .catch(console.error);
@@ -81,18 +87,50 @@ app.post('/slack/actions', (req, res) => {
   .catch(console.error);
 })
 
-// app.post('/slack/confirm', (req, res) => {
-//   if (value)
-//   const payload = JSON.parse(req.body.payload)
-//   console.log(payload)
-//   const conversationId = payload.channel.id;
-//   web.chat.postMessage({ channel: conversationId, text: 'Your event has been created!' })
-//   .then((res) => {
-//     // `res` contains information about the posted message
-//     console.log('Message sent: ', res.ts);
-//   })
-//   .catch(console.error);
-// })
+app.post('/slack/confirm', (req, res) => {
+  const payload = JSON.parse(req.body.payload)
+  console.log(payload.actions[0].value)
+  const conversationId = payload.channel.id;
+  if (payload.actions[0].value === 'true') {
+    googleCal(payload.callback_id, (err) => {
+      if (err) {
+        web.chat.postMessage({ channel: conversationId, text: 'There was an error creating your event!' })
+        .then((res) => {
+          // `res` contains information about the posted message
+          console.log('Message sent: ', res.ts);
+        })
+        .catch(console.error);
+      } else {
+        web.chat.postMessage({ channel: conversationId, text: 'Your event has been created!' })
+        .then((res) => {
+          // `res` contains information about the posted message
+          console.log('Message sent: ', res.ts);
+        })
+        .catch(console.error);
+      }
+
+    })
+    web.chat.postMessage({ channel: conversationId, text: 'Your event is being created' })
+    .then((res) => {
+      // `res` contains information about the posted message
+      console.log('Message sent: ', res.ts);
+    })
+    .catch(console.error);
+  } else {
+    Task.findByIdAndDelete(id, (err, success) => {
+      if (err) {
+        console.log(err)
+      } else {
+        web.chat.postMessage({ channel: conversationId, text: 'Creation canceled!' })
+        .then((res) => {
+          // `res` contains information about the posted message
+          console.log('Message sent: ', res.ts);
+        })
+        .catch(console.error);
+      }
+    })
+  }
+})
 
 // URL_verification to test events
 app.post('/slack/events', (req, res) => {
