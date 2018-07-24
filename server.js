@@ -6,6 +6,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const app = express();
 import dialogflow from './dialog'
+import googleCal from './index'
 
 // An access token (from your Slack app or custom integration - xoxp, xoxb, or xoxa)
 const token = process.env.BOT_TOKEN;
@@ -25,7 +26,7 @@ rtm.on('message', (event) => {
             {
               "text": obj.task + ' ' + obj.subject + ' at ' + obj.date ,
               "fallback": "You are unable to choose a game",
-              "callback_id": "wopr_game",
+              "callback_id": obj._id,
               "color": "#3AA3E3",
               "attachment_type": "default",
               "actions": [
@@ -34,20 +35,14 @@ rtm.on('message', (event) => {
                   "text": "Yes",
                   "style": "primary",
                   "type": "button",
-                  "value": "yes"
+                  "value": "true"
                 },
                 {
                   "name": "no",
                   "text": "No",
                   "style": "danger",
                   "type": "button",
-                  "value": "no",
-                  "confirm": {
-                    "title": "Are you sure?",
-                    "text": "Wouldn't you prefer a good game of chess?",
-                    "ok_text": "Yes",
-                    "dismiss_text": "No"
-                  }
+                  "value": "false",
                 }
               ]
             }
@@ -56,6 +51,7 @@ rtm.on('message', (event) => {
         })
         .then((res) => {
           // `res` contains information about the posted message
+          googleCal(res.message.attachments[0].callback_id)
           console.log('Message sent: ', event.ts);
         })
         .catch(console.error);
@@ -85,17 +81,18 @@ app.post('/slack/actions', (req, res) => {
   .catch(console.error);
 })
 
-app.post('/slack/confirm', (req, res) => {
-  const payload = JSON.parse(req.body.payload)
-  console.log(payload)
-  const conversationId = payload.channel.id;
-  web.chat.postMessage({ channel: conversationId, text: 'Your event has been created!' })
-  .then((res) => {
-    // `res` contains information about the posted message
-    console.log('Message sent: ', res.ts);
-  })
-  .catch(console.error);
-})
+// app.post('/slack/confirm', (req, res) => {
+//   if (value)
+//   const payload = JSON.parse(req.body.payload)
+//   console.log(payload)
+//   const conversationId = payload.channel.id;
+//   web.chat.postMessage({ channel: conversationId, text: 'Your event has been created!' })
+//   .then((res) => {
+//     // `res` contains information about the posted message
+//     console.log('Message sent: ', res.ts);
+//   })
+//   .catch(console.error);
+// })
 
 // URL_verification to test events
 app.post('/slack/events', (req, res) => {
