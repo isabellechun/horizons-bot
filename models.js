@@ -7,7 +7,7 @@ if (! process.env.MONGODB_URI) {
 }
 
 var connect = process.env.MONGODB_URI;
-mongoose.connect(connect);
+mongoose.connect(connect, { useNewUrlParser: true });
 
 var taskSchema = new mongoose.Schema({
   host: {
@@ -16,7 +16,7 @@ var taskSchema = new mongoose.Schema({
   task: {
     type: String,
     required: true
-  }
+  },
   subject: {
     type: String,
     required: true
@@ -33,16 +33,16 @@ var taskSchema = new mongoose.Schema({
 var userSchema = new mongoose.Schema({
   token: {
     type: Object
-  }
+  },
   slackId: {
     type: String
-  }
+  },
   slackUsername: {
     type: String
-  }
+  },
   slackEmail: {
     type: String
-  }
+  },
   slackChannel: {
     type: String
   }

@@ -38,6 +38,7 @@ export default function dflow(query, callback) {
         console.log("Text is: " + result.fulfillmentText)
         var resp = result.fulfillmentText.split(',;,');
         //resp[0] = task, resp[1] = subject, resp[2] = date-time
+        console.log(resp);
         var obj = {
           intent: result.intent.displayName,
           task: resp[0],
@@ -50,8 +51,11 @@ export default function dflow(query, callback) {
           date: resp[2]
         });
         task.save(function(err, success) {
-          if (err) console.log('err in saving', err)
-          else () => callback(obj)
+          if (err) {
+            console.log('err in saving', err)
+          } else {
+            callback(success)
+          }
         })
 
         //console.log("Dialog: " + obj)
