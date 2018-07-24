@@ -15,13 +15,40 @@ const rtm = new RTMClient(token);
 rtm.start()
 // Listen function for message
 rtm.on('message', (event) => {
-  dialogflow(event.text)
-  rtm.sendMessage('You said: ' + event.text, event.channel)
+  if (event.username !== 'HotPotBot') {
+    dialogflow(event.text)
+
+    web.chat.postMessage({
+      channel: event.channel,
+      text: 'Confirm your event: ' + event.text,
+      attachments: [
+        {
+          "callback_id": "confirmation",
+          "color": "#3AA3E3",
+          "attachment_type": "default",
+          "actions": [
+            {
+              "name": "response",
+              "text": "Yes",
+              "type": "button",
+              "value": "true"
+            },
+            {
+              "name": "response",
+              "text": "No",
+              "type": "button",
+              "value": "false"
+            },
+          ]
+        }
+      ]
+    })
     .then((res) => {
       // `res` contains information about the posted message
       console.log('Message sent: ', event.ts);
     })
     .catch(console.error);
+  }
 })
 
 // Create the adapter using the app's verification token, read from environment variable
@@ -39,11 +66,11 @@ app.post('/slack/actions', (req, res) => {
 
   // See: https://api.slack.com/methods/chat.postMessage
   web.chat.postMessage({ channel: conversationId, text: 'Thanks for saying hello' })
-    .then((res) => {
-      // `res` contains information about the posted message
-      console.log('Message sent: ', res.ts);
-    })
-    .catch(console.error);
+  .then((res) => {
+    // `res` contains information about the posted message
+    console.log('Message sent: ', res.ts);
+  })
+  .catch(console.error);
 })
 
 // URL_verification to test events
