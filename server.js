@@ -16,40 +16,53 @@ rtm.start()
 // Listen function for message
 rtm.on('message', (event) => {
   if (event.username !== 'HotPotBot') {
-    dialogflow(event.text)
-
-    web.chat.postMessage({
-      channel: event.channel,
-      text: 'Confirm your event: ' + event.text,
-      attachments: [
+    dialogflow(event.text, (obj) => {
+      console.log('obj from dialog: ', obj)
+      web.chat.postMessage(
         {
-          "callback_id": "confirmation",
-          "color": "#3AA3E3",
-          "attachment_type": "default",
-          "actions": [
+          "channel": event.channel,
+          "text": "Is this correct?",
+          "attachments": [
             {
-              "name": "response",
-              "text": "Yes",
-              "type": "button",
-              "value": "true"
-            },
-            {
-              "name": "response",
-              "text": "No",
-              "type": "button",
-              "value": "false"
-            },
+              "text": obj.task + ' ' + obj.subject + ' at ' + obj.date ,
+              "fallback": "You are unable to choose a game",
+              "callback_id": "wopr_game",
+              "color": "#3AA3E3",
+              "attachment_type": "default",
+              "actions": [
+                {
+                  "name": "yes",
+                  "text": "Yes",
+                  "color": "#26E127",
+                  "type": "button",
+                  "value": "yes"
+                },
+                {
+                  "name": "no",
+                  "text": "No",
+                  "color": "#E13726",
+                  "type": "button",
+                  "value": "no",
+                  "confirm": {
+                    "title": "Are you sure?",
+                    "text": "Wouldn't you prefer a good game of chess?",
+                    "ok_text": "Yes",
+                    "dismiss_text": "No"
+                  }
+                }
+              ]
+            }
+
           ]
-        }
-      ]
-    })
-    .then((res) => {
-      // `res` contains information about the posted message
-      console.log('Message sent: ', event.ts);
-    })
-    .catch(console.error);
-  }
-})
+        })
+        .then((res) => {
+          // `res` contains information about the posted message
+          console.log('Message sent: ', event.ts);
+        })
+        .catch(console.error);
+      })
+    }
+  })
 
 // Create the adapter using the app's verification token, read from environment variable
 // const slackInteractions = createMessageAdapter(process.env.SLACK_VERIFICATION_TOKEN);
