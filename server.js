@@ -17,7 +17,6 @@ rtm.start()
 rtm.on('message', (event) => {
   if (event.username !== 'HotPotBot') {
     dialogflow(event.text, (obj) => {
-      console.log('obj from dialog: ', obj)
       web.chat.postMessage(
         {
           "channel": event.channel,
@@ -33,14 +32,14 @@ rtm.on('message', (event) => {
                 {
                   "name": "yes",
                   "text": "Yes",
-                  "color": "#26E127",
+                  "style": "primary",
                   "type": "button",
                   "value": "yes"
                 },
                 {
                   "name": "no",
                   "text": "No",
-                  "color": "#E13726",
+                  "style": "danger",
                   "type": "button",
                   "value": "no",
                   "confirm": {
@@ -79,6 +78,18 @@ app.post('/slack/actions', (req, res) => {
 
   // See: https://api.slack.com/methods/chat.postMessage
   web.chat.postMessage({ channel: conversationId, text: 'Thanks for saying hello' })
+  .then((res) => {
+    // `res` contains information about the posted message
+    console.log('Message sent: ', res.ts);
+  })
+  .catch(console.error);
+})
+
+app.post('/slack/confirm', (req, res) => {
+  const payload = JSON.parse(req.body.payload)
+  console.log(payload)
+  const conversationId = payload.channel.id;
+  web.chat.postMessage({ channel: conversationId, text: 'Your event has been created!' })
   .then((res) => {
     // `res` contains information about the posted message
     console.log('Message sent: ', res.ts);
