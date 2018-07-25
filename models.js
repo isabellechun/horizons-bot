@@ -9,19 +9,32 @@ if (! process.env.MONGODB_URI) {
 var connect = process.env.MONGODB_URI;
 mongoose.connect(connect, { useNewUrlParser: true });
 
-var eventSchema = new mongoose.Schema({
-  host: {
+var reminderSchema = new mongoose.Schema({
+  intent: {
     type: String,
   },
   task: {
     type: String,
     required: true
   },
+  day: {
+    type: String,
+    required: true
+  }
+})
+
+var eventSchema = new mongoose.Schema({
+  host: {
+    type: String,
+  },
+  intent: {
+    type: String,
+  },
   subject: {
     type: String,
     required: true
   },
-  date: {
+  start: {
     type: String,
     required: true
   },
@@ -29,7 +42,9 @@ var eventSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  invitees: Array,
+  invitees: {
+    type: Array,
+  },
   eventId: String,
   requestId: String
 });
@@ -53,9 +68,11 @@ var userSchema = new mongoose.Schema({
 })
 
 var Event = mongoose.model('Event', eventSchema);
-var User = mongoose.model('User', userSchema)
+var User = mongoose.model('User', userSchema);
+var Reminder = mongoose.model('Reminder', reminderSchema)
 
 module.exports = {
   Event: Event,
-  User: User
+  User: User,
+  Reminder: Reminder
 };
