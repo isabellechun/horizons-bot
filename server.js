@@ -20,9 +20,9 @@ rtm.on('message', (event) => {
     dialogflow(event.text, (obj) => {
 
       var start = new Date(obj.date)
-      start = start.toUTCString();
+      start.setHours(start.getHours() - 7);
       var end = new Date(obj.end)
-      end = end.toUTCString();
+      end.setHours(end.getHours() - 7) //.toUTCString();
 
       web.chat.postMessage(
         {
@@ -30,7 +30,7 @@ rtm.on('message', (event) => {
           "text": "Is this correct?",
           "attachments": [
             {
-              "text": `${obj.task} ${obj.subject} from ${start} to ${end}`, // obj.task + ' ' + obj.subject + ' from ' + obj.date + ' to ' +  obj.end,
+              "text": `${obj.task} ${obj.subject} from ${start.toUTCString()} to ${end.toUTCString()}`, // obj.task + ' ' + obj.subject + ' from ' + obj.date + ' to ' +  obj.end,
               "fallback": "You are unable to choose a game",
               "callback_id": obj._id,
               "color": "#3AA3E3",
