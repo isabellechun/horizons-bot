@@ -6,7 +6,12 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const app = express();
 import dialogflow from './dialog'
-import googleCal from './index'
+const fs = require('fs');
+const readline = require('readline');
+const {google} = require('googleapis');
+const opn = require('opn');
+const User = require('./models').User;
+const Event = require('./models').Event;
 
 // An access token (from your Slack app or custom integration - xoxp, xoxb, or xoxa)
 const token = process.env.BOT_TOKEN;
@@ -16,9 +21,27 @@ const rtm = new RTMClient(token);
 rtm.start()
 // Listen function for message
 rtm.on('message', (event) => {
+  console.log(event)
   if (event.username !== 'HotPotBot') {
+    User.findOne({slackId: event.user}, (err, user) => {
+      if (!user) {
+        var newUser = new User ({
+          slackId: event.user,
+        })
+        newUser.save((err, resp) => {
+          if (err) {
+            console.log(err)
+          } else {
+            console.log('user saved: ' + resp)
+            authorize(null, event);
+          }
+        })
+      } else {
+        authorize(null, event);
+        console.log('User exists')
+      }
+    })
     dialogflow(event.text, (obj) => {
-
       var start = new Date(obj.date)
       start = start.toUTCString();
       var end = new Date(obj.end)
@@ -69,9 +92,118 @@ rtm.on('message', (event) => {
 // const slackInteractions = createMessageAdapter(process.env.SLACK_VERIFICATION_TOKEN);
 // const slackEvents = createSlackEventAdapter(process.env.SLACK_VERIFICATION_TOKEN);
 
-// Initialize an Express application
+// Initialize an Express application ////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.json())
+
+const SCOPES = ['https://www.googleapis.com/auth/calendar'];
+const TOKEN_PATH = 'token.json';
+const credentials = require('./credentials.json')
+const {client_secret, client_id, redirect_uris} = credentials.installed;
+const oAuth2Client = new google.auth.OAuth2(
+  client_id, client_secret, redirect_uris[1]+redirect_uris[0]);
+
+function authorize(callback, event) {
+  console.log("authorize")
+
+  // Check if we have previously stored a token.
+  User.findOne({slackId: event.user}, (err, user) => {
+    console.log(user)
+    if (!user.token) {
+      getAccessToken(oAuth2Client, (token) => {
+        var update = { token: token }
+        User.findOneAndUpdate({slackId: event.user}, update, (err, user) => {
+          console.log(user)
+          if (err) {
+            console.log('Find Error line 125: ' + err)
+          }
+        })
+      });
+    } else {
+      oAuth2Client.setCredentials(user.token);
+    }
+
+  // fs.readFile(TOKEN_PATH, (err, token) => {
+  //   if (err) return getAccessToken(oAuth2Client, callback);
+  //   oAuth2Client.setCredentials(JSON.parse(token));
+    //callback(oAuth2Client);
+  // });
+  })
+}
+
+function getAccessToken(oAuth2Client, callback) {
+  const authUrl = oAuth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: SCOPES,
+  });
+
+  opn(authUrl);
+
+  app.get("/auth", function(req,res){
+    var code = req.query.code
+    console.log("this is the code!: ", code)
+    oAuth2Client.getToken(code, (err, token) => {
+      console.log('this is the token: ' + token)
+      if (err) console.log("theres an error with getting the token: " + err);
+      oAuth2Client.setCredentials(token);
+      // Store the token to disk for later program executions
+      /*
+      fs.writeFile(TOKEN_PATH, JSON.stringify(token), (err) => {
+        if (err) console.error(err);
+        console.log('Token stored to', TOKEN_PATH);
+      });
+      //callback(oAuth2Client);
+    });
+    */
+      callback(token);
+      res.send("token created! You can close this now")
+    })
+  })
+}
+
+
+function createEvent(auth, id, call){
+  Event.findById(id, (err, success) => {
+    if (err) {
+      console.log(err)
+    } else {
+      console.log(success.date)
+      var event = {
+        'summary': success.subject,
+        'start': {
+          'dateTime': success.date,
+        },
+        'end': {
+          'dateTime': success.end,
+        },
+        /*'recurrence': [
+        'RRULE:FREQ=DAILY;COUNT=2'
+          ],
+      'attendees': [
+      {'email': 'lpage@example.com'},
+      {'email': 'sbrin@example.com'},
+    ],
+    'reminders': {
+    'useDefault': false,
+    'overrides': [
+    {'method': 'email', 'minutes': 24 * 60},
+    {'method': 'popup', 'minutes': 10},
+  ],
+}, */
+      };
+      const calendar = google.calendar({version: 'v3', auth});
+
+      calendar.events.insert({
+        auth: auth,
+        calendarId: 'primary',
+        resource: event,
+      }, function(err) {
+        call(err)
+      });
+    }
+  })
+}
 
 // Post "Thanks" to channelid of request
 app.post('/slack/actions', (req, res) => {
@@ -92,7 +224,7 @@ app.post('/slack/confirm', (req, res) => {
   console.log(payload.actions[0].value)
   const conversationId = payload.channel.id;
   if (payload.actions[0].value === 'true') {
-    googleCal(payload.callback_id, (err) => {
+    createEvent(oAuth2Client, payload.callback_id, (err) => {
       if (err) {
         web.chat.postMessage({ channel: conversationId, text: 'There was an error creating your event!' })
         .then((res) => {
@@ -117,7 +249,7 @@ app.post('/slack/confirm', (req, res) => {
     })
     .catch(console.error);
   } else {
-    Task.findByIdAndDelete(id, (err, success) => {
+    Event.findByIdAndDelete(payload.callback_id, (err, success) => {
       if (err) {
         console.log(err)
       } else {
