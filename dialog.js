@@ -30,39 +30,33 @@ export default function dflow(query, callback) {
     .detectIntent(request)
     .then(responses => {
       const result = responses[0].queryResult;
-      //console.log(`  Query: ${result.queryText}`);
-      //console.log(`  FullResponse: ${result}`);
+      //console.log(`  Query: ${result.queryText}  FullResponse: ${result}`);
       console.log(result.intent)
       if (result.intent) {
-        //console.log(`  Intent: ${result.intent.displayName}`);
-        //parse result.queryText
-        console.log('Detected intent in dialog.js');
         var resp = result.fulfillmentText.split(',;,');
         //resp[0] = Event, resp[1] = subject, resp[2] = date-time
-        // var obj = {
-        //   intent: result.intent.displayName,
-        //   Event: resp[0],
-        //   subject: resp[1],
-        //   date: resp[2]
-        // };
+
         if (result.intent.displayName === 'event') {
-          console.log('event')
+          console.log('responses[0].queryResult.parameters.fields.attendees.listValue.values ---------------', responses[0].queryResult.parameters.fields.attendees.listValue.values)
           var start = new Date(resp[2])
           start.setHours(start.getHours() + start.getTimezoneOffset()/60)
           var end = new Date(resp[2])
           end.setHours(end.getHours() + end.getTimezoneOffset()/60 + 1)
           start = start.toISOString()
           end = end.toISOString()
-          console.log('Start time: ' + start)
-          console.log('End time: ' + end);
+          // console.log('Start time: ' + start + ' \nEnd time: ' + end);
           var event;
           if (resp[3]) {
+            var attendeeArr = responses[0].queryResult.parameters.fields.attendees.listValue.values.slice()
+            var attendees = attendeeArr.map((nameObj) => (nameObj.stringValue))
+            console.log('attendees array final', attendees)
+
             var event = new Event({
               intent: resp[0],
               subject: resp[1],
               start: start,
               end: end,
-              attendees: resp[3]
+              invitees: attendees // can't use resp[3] bc it's in format "name1, name2, and name3"
             });
           } else {
             var event = new Event({
