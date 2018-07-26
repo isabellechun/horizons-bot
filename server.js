@@ -27,7 +27,7 @@ rtm.on('message', (event) => {
   if (event.username === 'HotPotBot') { return }  //message is sent from app to client
   if (event.username !== 'HotPotBot') {  //message is sent from client to app
     User.findOne({slackId: event.user}, (err, user) => {
-      console.log("the user being found is:",user)
+      //console.log("the user being found is:",user)
       if (!user) {  // sender of message is not in database
         fetch(`https://slack.com/api/users.info?token=${token}&user=${event.user}`, {
           method: 'GET',
@@ -44,7 +44,8 @@ rtm.on('message', (event) => {
             slackUsername: myJson.user.profile.display_name,
             email: myJson.user.profile.email,
             first_name: nameArr[0],
-            last_name: nameArr[1]
+            last_name: nameArr[1],
+            channel: event.channel
           })
           newUser.save((err, resp) => {
             if (err) {
@@ -62,13 +63,12 @@ rtm.on('message', (event) => {
         web.chat.postMessage({"channel": event.channel, "text": `Authorize HotPotBot to access your Google Calendar here: \n ${authUrl}`})
       } else {  //sender of message already exists in database- check if their token is valid or expired
         oAuth2Client.setCredentials(user.token)
-        console.log('User exists')
+        //console.log('User exists')
       }
     })
   }
   dialogflow(event.text, (obj) => {
     console.log('DIALOGFLOW FUNCTION start')
-    console.log(obj)
     if (obj.intent === 'Event') { // user wants to schedule an event with a start and end time
       var start = new Date(obj.start)
       start.setHours(start.getHours() - 7);
@@ -106,7 +106,10 @@ rtm.on('message', (event) => {
         })
         .then((res) => { console.log('Message sent: ', res); })// res contains information about the posted message
         .catch(console.error);
-      } else {  // user wants to schedule a reminder on obj.day
+      }
+
+
+      else {  // user wants to schedule a reminder on obj.day
         web.chat.postMessage(
           {
             "channel": event.channel,
@@ -211,12 +214,8 @@ rtm.on('message', (event) => {
       })
     */
 
-    function createEvent(auth, id, call){
-      Event.findById(id, (err, success) => {
-        if (err) {
-          console.log(err)
-        } else {
-          console.log(success.start)
+    function createEvent(auth, success, call){
+          console.log("this is the time: ", success.start, success.end)
           var event = {
             'summary': success.subject,
             'start': {
@@ -228,10 +227,7 @@ rtm.on('message', (event) => {
             // 'recurrence': [
             //   'RRULE:FREQ=DAILY;COUNT=2'
             // ],
-            // 'attendees': [
-            //   {'email': 'lpage@example.com'},
-            //   {'email': 'sbrin@example.com'},
-            // ],
+            'attendees': success.invitees, //success.attendees is an array of name strings as given by user. NOT emails!
             // 'reminders': {
             //   'useDefault': false,
             //   'overrides': [
@@ -250,8 +246,6 @@ rtm.on('message', (event) => {
             call(err)
           });
         }
-      })
-    }
 
     function createReminder(auth, id, call){
       Reminder.findById(id, (err, success) => {
@@ -312,51 +306,97 @@ app.post('/slack/confirm', (req, res) => {
   var messArr = messText.split(':')
   var intent = messArr[0]
   const conversationId = payload.channel.id;
-  if (intent === 'Event') {
+  if (intent === 'Event') {  //if user wants to schedule an event
     if (payload.actions[0].value === 'true') {
-      createEvent(oAuth2Client, payload.callback_id, (err) => {
-        if (err) {
-          console.log('this is the error !!1!', err)
-          web.chat.postMessage({ channel: conversationId, text: 'There was an error creating your event!' })
-          .then((res) => { console.log('Message sent: ', res); })// res contains information about the posted message
-          .catch(console.error);
-        } else {
-          web.chat.postMessage({ channel: conversationId, text: 'Your event has been created!' })
-          .then((res) => { console.log('Message sent: ', res); })// res contains information about the posted message
-          .catch(console.error);
-        }
-
-      })
       web.chat.postMessage({ channel: conversationId, text: 'Your event is being created' })
-      .then((res) => { console.log('Message sent: ', res); })// res contains information about the posted message
+      .then((res) => { console.log('Message sent: ')})//, res); })// res contains information about the posted message
       .catch(console.error);
+      Event.findById(payload.original_message.attachments[0].callback_id, (err, success) => {
+        if (err) {
+          console.log('Event find error: ', err)
+        } else {
+          createEvent(oAuth2Client, success, (err) => {
+            if (err) {
+              console.log('this is the error !!1!', err)
+              web.chat.postMessage({ channel: conversationId, text: 'There was an error creating your event!' })
+              .then((res) => { console.log('Message sent: ', res); })// res contains information about the posted message
+              .catch(console.error);
+            } else {
+              web.chat.postMessage({ channel: conversationId, text: 'Your event has been created!' })
+              .then((res) => { console.log('Message sent: ')})//, res); })// res contains information about the posted message
+              .catch(console.error);
+              /*
+              if (obj.attendees.length > 0) {   //obj or success???
+                obj.attendees.forEach(function(user) {
+                  User.findOne({first_name: user}, (err, user) {
+                    if (err) {console.log('attendee find error: ', err)}
+                    else {
+                      web.chat.postMessage(
+                        {
+                          "channel": user.channel,
+                          "text": "You have an event invitation!",
+                          "attachments": [
+                            {
+                              "text": messText, // obj.task + ' ' + obj.subject + ' from ' + obj.date + ' to ' +  obj.end,
+                              "fallback": "You are unable to choose a game",
+                              "callback_id": payload.original_message.attachments[0].callback_id,
+                              "color": "#3AA3E3",
+                              "attachment_type": "default",
+                              "actions": [
+                                {
+                                  "name": "yes",
+                                  "text": "Yes",
+                                  "style": "primary",
+                                  "type": "button",
+                                  "value": "true"
+                                },
+                                {
+                                  "name": "no",
+                                  "text": "No",
+                                  "style": "danger",
+                                  "type": "button",
+                                  "value": "false",
+                                }
+                              ]
+                            }
+                          ]
+                        })
+                    }
+                  })
+                })
+              }
+              */
+            }
+          })
+        }
+      })
     } else {
       Event.findByIdAndDelete(payload.callback_id, (err, success) => {
         if (err) {
           console.log(err)
         } else {
-          web.chat.postMessage({ channel: conversationId, text: 'Creation canceled!' })
-          .then((res) => { console.log('Message sent: ', res); })// res contains information about the posted message
+          web.chat.postMessage({ channel: conversationId, text: 'Event creation canceled!' })
+          .then((res) => { console.log('Message sent: ')})//, res); })// res contains information about the posted message
           .catch(console.error);
         }
       })
     }
-  } else {
+  } else { //if user wants to create a reminder
     if (payload.actions[0].value === 'true') {
       createReminder(oAuth2Client, payload.callback_id, (err) => {
         if (err) {
           console.log('this is the error !!1!', err)
-          web.chat.postMessage({ channel: conversationId, text: 'There was an error creating your event!' })
+          web.chat.postMessage({ channel: conversationId, text: 'There was an error creating your reminder!' })
           .then((res) => { console.log('Message sent: ', res); })// res contains information about the posted message
           .catch(console.error);
         } else {
-          web.chat.postMessage({ channel: conversationId, text: 'Your event has been created!' })
+          web.chat.postMessage({ channel: conversationId, text: 'Your reminder has been created!' })
           .then((res) => { console.log('Message sent: ', res); })// res contains information about the posted message
           .catch(console.error);
         }
 
       })
-      web.chat.postMessage({ channel: conversationId, text: 'Your event is being created' })
+      web.chat.postMessage({ channel: conversationId, text: 'Your reminder is being created' })
       .then((res) => { console.log('Message sent: ', res); })// res contains information about the posted message
       .catch(console.error);
     } else {
@@ -364,7 +404,7 @@ app.post('/slack/confirm', (req, res) => {
         if (err) {
           console.log(err)
         } else {
-          web.chat.postMessage({ channel: conversationId, text: 'Creation canceled!' })
+          web.chat.postMessage({ channel: conversationId, text: 'Reminder creation canceled!' })
           .then((res) => { console.log('Message sent: ', res); })// res contains information about the posted message
           .catch(console.error);
         }
