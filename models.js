@@ -62,7 +62,7 @@ var userSchema = new mongoose.Schema({
   slackEmail: {
     type: String
   },
-  slackChannel: {
+  Name: {
     type: String
   }
 })
